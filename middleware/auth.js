@@ -11,8 +11,8 @@ module.exports = function (req, res, next) {
   }
 
   try {
+    // return verified the payload object
     const decoded = jwt.verify(token, config.get("jwtSecret"));
-
     req.user = decoded.user;
     next();
   } catch (err) {
