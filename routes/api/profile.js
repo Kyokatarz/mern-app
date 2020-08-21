@@ -22,6 +22,8 @@ router.get("/me", auth, async (req, res) => {
     if (!profile) {
       return res.status(400).json({ msg: "No profile found with this user!" });
     }
+
+    return res.status(200).json(profile);
   } catch (err) {
     console.error(err.message);
     res.status(500).send("Server Error");
@@ -108,4 +110,48 @@ router.post(
     }
   }
 );
+
+// @route       GET api/profile/
+// @desc        Get all profiles
+// @Access      Public
+
+router.get("/", async (req, res) => {
+  try {
+    const profiles = await Profile.find().populate("user", ["name", "avatar"]);
+    return res.status(200).json(profiles);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ msg: "Server error!" });
+  }
+});
+
+// @route       GET api/profile/user/:user_id
+// @desc        Get profile by user_id
+// @Access      Public
+
+router.get("/user/:user_id", async (req, res) => {
+  try {
+    const profile = await Profile.findOne({
+      user: req.params.user_id,
+    }).populate("user", ["name", "avatar"]);
+
+    if (!profile) {
+      return res
+        .status(400)
+        .json({ error: "Can't find profile with provided userId!" });
+    } else {
+      return res.status(200).json(profile);
+    }
+  } catch (err) {
+    console.error(err.message);
+    if (err.kind == "ObjectId") {
+      return res
+        .status(400)
+        .json({ error: "Can't find profile with provided userId!" });
+    }
+
+    return res.status(500).json({ msg: "Server error!" });
+  }
+});
+
 module.exports = router;
