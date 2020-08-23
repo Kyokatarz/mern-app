@@ -5,6 +5,7 @@ const auth = require("../../middleware/auth");
 const Post = require("../../models/Post");
 const Profile = require("../../models/Profile");
 const User = require("../../models/User");
+const { remove } = require("../../models/Post");
 
 const router = express.Router();
 
@@ -142,6 +143,73 @@ router.put("/unlike/:post_id", auth, async (req, res) => {
   } catch (err) {
     if (err.kind == "ObjectId")
       return res.status(401).json({ msg: "No post found!" });
+
+    console.error(err.message);
+    return res.status(500).send("Server error!");
+  }
+});
+
+// @route       PUT /api/post/comment/:post_id
+// @desc        Add comment to post
+// @Access      Private
+
+router.put(
+  "/comment/:post_id",
+  [auth, check("text", "Comment's text is required!").not().isEmpty()],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+    try {
+      const post = await Post.findById(req.params.post_id);
+      const commentingUser = await User.findById(req.user.id);
+      const { text, date } = req.body;
+      const commentObject = {
+        text,
+        user: req.user.id,
+        name: commentingUser.name,
+        avatar: commentingUser.avatar,
+        date,
+      };
+
+      post.comment.unshift(commentObject);
+      await post.save();
+      return res.json(post);
+    } catch (err) {
+      if (err.kind == "ObjectId")
+        return res.status(401).json({ msg: "No post found!" });
+
+      console.error(err.message);
+      return res.status(500).send("Server error!");
+    }
+  }
+);
+
+// @route       DELETE /api/post/comment/:post_id
+// @desc        Delete comment on post
+// @Access      Private
+
+router.delete("/:post_id/:comment_id", auth, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.post_id);
+
+    const commentsId = post.comment.map((comment) => comment.id);
+
+    if (!post || !commentsId.includes(req.params.comment_id)) {
+      return res.status(400).json({ msg: "No post or comment found" });
+    }
+    if (!(!req.user.id == post.user && !commentsId.includes(req.user.id)))
+      return res.status(401).json({ msg: "You're not authorized to do that!" });
+
+    const removeIndex = commentsId.indexOf(req.params.comment_id);
+    post.comment.splice(removeIndex, 1);
+    await post.save();
+
+    return res.status(200).json({ msg: "Comment deleted!" });
+  } catch (err) {
+    if (err.kind == "ObjectId")
+      return res.status(400).json({ msg: "No post found!" });
 
     console.error(err.message);
     return res.status(500).send("Server error!");
